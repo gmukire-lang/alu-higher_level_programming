@@ -1,0 +1,103 @@
+Introduction
+In Python, everything is an object. From simple numbers and text strings to complex data structures and custom classes, Python models all data as objects stored in memory. Understanding how Python handles these objects—how it identifies them, tracks their types, and manages changes to their internal state—is fundamental to writing clean, bug-free, and memory-efficient code. In this post, we will dive deep into Python’s data model by exploring object identity and types, distinguishing between mutable and immutable objects, analyzing how Python passes arguments to functions, and examining low-level CPython memory optimizations such as integer pre-allocation.
+
+ID and Type
+Every object created in Python is assigned a unique identity, a type, and a value. The object's identity represents its memory address and is guaranteed to be unique and constant for the object during its lifetime; you can inspect this using the built-in id() function (in CPython, id(obj) returns the exact memory address where obj resides). The object's type determines what operations the object supports and what values it can hold, which you can verify using the type() function. Understanding identity vs. value is critical because two variables can reference different objects that happen to share the exact same content.
+
+Python
+x = [1, 2, 3]
+y = [1, 2, 3]
+
+print(type(x))  # <class 'list'>
+print(id(x))    # e.g., 140562389124032
+print(id(y))    # e.g., 140562389125120 (Different address!)
+
+print(x == y)   # True  -> Equality: Values are identical
+print(x is y)   # False -> Identity: They point to different memory addresses
+Mutable Objects
+A mutable object is an object whose state or contents can be modified in place after it has been created without changing its memory identity (id). The standard built-in mutable data types in Python are list, dict, set, and bytearray. When you modify a mutable object—such as appending an item to a list or inserting a new key-value pair into a dictionary—Python alters the existing block of memory allocated for that object rather than instantiating a new one.
+
+Python
+# Mutable object behavior: list modification
+my_list = [10, 20]
+print(f"Before: {my_list}, ID: {id(my_list)}")
+
+my_list.append(30)  # Modifying in place
+print(f"After:  {my_list}, ID: {id(my_list)}")  # ID remains identical!
+Immutable Objects
+An immutable object, in contrast, is an object whose internal state cannot be modified after its creation. The standard built-in immutable data types in Python include numbers (int, float, complex), strings (str), tuples (tuple), frozen sets (frozenset), and byte sequences (bytes). If you attempt to alter the value of an immutable variable—for instance, by concatenating a string or incrementing an integer—Python leaves the original object unchanged in memory and creates a brand-new object at a distinct memory address, updating your variable name to reference the new location.
+
+Python
+# Immutable object behavior: string modification
+my_str = "Hello"
+print(f"Before: {my_str}, ID: {id(my_str)}")
+
+my_str += ", World!"  # Creates a brand-new string object
+print(f"After:  {my_str}, ID: {id(my_str)}")  # ID changes!
+Why Does It Matter and How Differently Does Python Treat Mutable and Immutable Objects
+The distinction between mutable and immutable objects fundamentally affects performance, thread safety, side effects, and memory architecture. Assignment in Python (a = b) never copies object data; it merely creates a reference (an alias) linking the variable name b to the exact same object bound to a. Because Python stores immutable objects with fixed sizes, operations on them are safe from unexpected side effects across variable aliases. However, with mutable objects, modifying an object through one variable reference alters the data for all aliases sharing that reference.
+
+Memory Schemas
+Schema 1: Immutable String Re-assignment vs. Variable Aliasing
+
+Plaintext
+[ Assignment & Aliasing ]
+x = "Python"
+y = x
+x = x + " 3"
+
+Memory Layout:
+Step 1:  x ---> ("Python" at 0x100) <--- y
+Step 2:  x ---> ("Python 3" at 0x200)
+         y ---> ("Python" at 0x100)
+Schema 2: Mutable List In-Place Mutation with Aliasing
+
+Plaintext
+[ Mutation via Aliases ]
+a = [1, 2]
+b = a          # Referencing: 'b' aliases 'a'
+a.append(3)    # In-place mutation
+
+Memory Layout:
+Step 1:  a ---> ([1, 2] at 0x300) <--- b
+Step 2:  a ---> ([1, 2, 3] at 0x300) <--- b  (b sees the change!)
+How Arguments Are Passed to Functions and What Does That Imply for Mutable and Immutable Objects
+Python uses a parameter-passing mechanism known as "Call by Object Reference" (or Call by Sharing). When you pass a variable to a function, Python passes the object reference by assignment. What this implies in practice depends heavily on mutability:
+
+If you pass an immutable object to a function and reassign or modify it internally, Python creates a local copy/new object within the function scope. The outer caller's object remains completely untouched.
+
+If you pass a mutable object and perform in-place modifications (such as .append() or .pop()), those changes immediately affect the original object outside the function because both caller and function local variables refer to the exact same memory address.
+
+Python
+def modify_values(num, lst):
+    num += 10        # Rebinds local 'num' to a new integer object
+    lst.append(99)   # Mutates the caller's list directly in memory
+
+n = 5
+l = [1, 2]
+
+modify_values(n, l)
+print(n)  # Output: 5  (Unchanged, integer is immutable)
+print(l)  # Output: [1, 2, 99] (Changed! List is mutable)
+Advanced Concepts: Integer Pre-allocation, Small Integer Caching, and Mixed Mutability Containers
+To optimize execution speed and save memory allocation overhead, CPython pre-allocates an array of small integer objects when the interpreter starts up. Specifically, CPython caches integers in the range from -5 to 256 using two preprocessor constants: NSMALLNEGINTS (set to 5) and NSMALLPOSINTS (set to 257). Because integers within the range [-5, 256] are the most frequently used numbers in typical programs (used for looping, indexing, counters, etc.), CPython reuses these exact singleton objects in memory rather than allocating new memory blocks whenever a small integer is created.
+
+Python
+# CPython Integer Caching Example
+a = 100
+b = 100
+print(a is b)  # True -> Both point to pre-allocated NSMALLPOSINTS object!
+
+x = 300
+y = 300
+print(x is y)  # False -> Outside [-5, 256], separate objects are created in memory
+Additionally, a fascinating edge case in Python's data model involves container objects like tuple and frozenset. While a tuple itself is strictly immutable (its length and references cannot be altered), it can hold references to mutable objects (such as lists). In this scenario, the tuple's structure (the memory addresses it holds) is fixed, but the contents of the underlying mutable objects can still be updated in place!
+
+Python
+# Immutable tuple containing a mutable list
+tup = ([1, 2], "immutable_string")
+print(f"Initial tuple: {tup}, ID: {id(tup)}")
+
+# Mutating the list inside the tuple
+tup[0].append(3)
+print(f"Updated tuple: {tup}, ID: {id(tup)}")  # Tuple ID remains identical!
