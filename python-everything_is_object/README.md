@@ -1,0 +1,1 @@
+Blog and texts of this thingy
