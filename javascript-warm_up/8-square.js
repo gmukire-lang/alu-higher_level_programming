@@ -6,7 +6,7 @@ if (Number.isNaN(num)) {
 } else {
   for (let l = 1; l <= num; l++) {
     let result = '';
-    for (let w = 1; w <= l; w++) {
+    for (let w = 1; w <= num; w++) {
       result += 'X';
     }
     console.log(result);
