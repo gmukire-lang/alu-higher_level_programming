@@ -1,0 +1,8 @@
+#!/usr/bin/node
+const  { argv } = require('node:process');
+const numbers = [];
+argv.forEach((val, index) => {
+    const num = Number(val);
+    numbers.append(num);
+});
+console.log(numbers);
